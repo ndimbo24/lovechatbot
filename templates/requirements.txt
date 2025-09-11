@@ -1,0 +1,4 @@
+Flask
+openai
+Flask-Session
+python-dotenv
