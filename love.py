@@ -3,10 +3,7 @@ from flask import Flask, request, jsonify, render_template, session
 from openai import OpenAI
 from datetime import datetime
 from flask_session import Session  # Server-side sessions
-from dotenv import load_dotenv
 
-# Load .env if present (safe for dev)
-load_dotenv()
 
 # Load environment variables (Render or local)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
