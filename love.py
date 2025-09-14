@@ -3,8 +3,12 @@ from flask import Flask, request, jsonify, render_template, session
 from openai import OpenAI
 from datetime import datetime
 from flask_session import Session  # Server-side sessions
+from dotenv import load_dotenv
 
-# Load environment variables from Render Environment
+# Load .env if present (safe for dev)
+load_dotenv()
+
+# Load environment variables (Render or local)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set. Add it to Render Environment Variables.")
@@ -38,6 +42,8 @@ def chat():
     # Initialize session memory
     if "messages" not in session:
         session["messages"] = []
+    if "history" not in session:
+        session["history"] = []
 
     # Multilingual warm system prompt
     system_prompt = (
@@ -53,17 +59,22 @@ def chat():
     if not session["messages"]:
         session["messages"].append({"role": "system", "content": system_prompt})
 
+    # Save user msg
     session["messages"].append({"role": "user", "content": user_message})
+    session["history"].append({"sender": "user", "text": user_message})
 
     try:
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",  # or "gpt-3.5-turbo"
+            model="gpt-4o-mini",  # lightweight and fast
             messages=session["messages"],
             max_tokens=500,
             temperature=0.8
         )
         bot_reply = resp.choices[0].message.content
+
+        # Save bot reply
         session["messages"].append({"role": "assistant", "content": bot_reply})
+        session["history"].append({"sender": "bot", "text": bot_reply})
 
         # Optional logging
         log_message(user_message, bot_reply)
@@ -73,11 +84,17 @@ def chat():
     except Exception as e:
         return jsonify({"reply": f"Oops! Something went wrong: {str(e)}"})
 
-# Clear chat session
+# Clear chat session (but keep history)
 @app.route("/clear", methods=["POST"])
 def clear_chat():
     session.pop("messages", None)
     return jsonify({"status": "cleared"})
+
+# Return chat history
+@app.route("/history", methods=["GET"])
+def get_history():
+    history = session.get("history", [])
+    return jsonify(history)
 
 if __name__ == "__main__":
     # Use dynamic port for Render hosting
